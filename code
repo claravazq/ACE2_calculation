@@ -1,0 +1,140 @@
+library(shiny)
+library(tidyverse)
+
+ui<-fluidPage(navbarPage("ACE2 concentration calculation", 
+                         tabPanel("Results", sidebarLayout(
+                           sidebarPanel(textInput(inputId="time", 
+                                                  label="Timepoint of measurement"),
+                                        fileInput(inputId="file1", 
+                                                  label= "Upload table of t0 OD340", multiple = F,
+                                                  accept = c(".csv")),
+                                        textOutput("warnCSV"),
+                                        fileInput(inputId="file2",
+                                                  label="Update table of timepoint X OD340", multiple = F,
+                                                  accept = c(".csv")),
+                                        textOutput("warnCSV2"),
+                                        fileInput(inputId="file3",
+                                                  label="Update table of timepoint X OD450", multiple = F,
+                                                  accept = c(".csv")),
+                                        textOutput("warnCSV3"),
+                                        numericInput(inputId="si", 0, 
+                                                     label="If the first column of my table contains letters write 2, otherwise write 1")),
+                           mainPanel(
+                             textOutput("warnCol"),
+                             tableOutput("table1")
+                           ))),
+                         tabPanel("Plot Standards",
+                                  tableOutput("table2"),
+                                  fluidRow(column(3, "Standards (ng/ml)", numericInput("n1", width="100%",max= 500, step=1, min=0, label="ng/ml", value=100), numericInput("n2",width="100%",step=1,max= 500,min=0,label="ng/ml", value=75),
+                                                  numericInput("n3",label="ng/ml",min=0, max= 500,step=1,width="100%",value=50), numericInput("n4",label="ng/ml",max= 500, min=0,step=1,width="100%",value=40), numericInput("n5", label="ng/ml",min=0,max= 500,step=1,width="100%",value=30), 
+                                                  numericInput("n6", label="ng/ml",min=0,max= 500,step=1,width="100%",value=20), numericInput("n7", min=0,label="ng/ml",max= 500,step=1,width="100%",value=10), numericInput("n8",label="ng/ml", min=0,max= 500,step=1,width="100%",value=6),
+                                                  numericInput("n9",label="ng/ml", min=0,max= 500,step=1,width="100%",value=4),numericInput("n10",min=0,label="ng/ml",max= 500,step=1,width="100%",value=1), numericInput("n11",label="ng/ml", min=0,step=1,max= 500,width="100%",value=0.2), numericInput("n12",width="100%",min=0,step=1,label="ng/ml",max= 500, value=0)),
+                                           column(4, offset = 1, "Column", numericInput("c1", min=1,step=1,width="100%",label="column 1",value=1), numericInput("c2", min=1,width="100%",label="column 2",step=1, value=2),
+                                                  numericInput("c3", label="column 3",width="100%",min=1,max= 500,step=1,value=3), numericInput("c4",min=1,label="column 4", max= 500,step=1,width="100%", value=4), numericInput("c5",label="column 5", max= 500, min=1,step=1,width="100%",value=5), 
+                                                  numericInput("c6", label="column 6",width="100%",min=1,max= 500,step=1,value=6), numericInput("c7",min=1,label="column 7",max= 500, step=1,width="100%", value=7), numericInput("c8", label="column 8",max= 500, min=1,step=1,width="100%",value=8),
+                                                  numericInput("c9", label="column 9",width="100%",min=1,max= 500,step=1,value=9),numericInput("c10",min=1,label="column 10", max= 500,step=1,width="100%",value=10), numericInput("c11", label="column 11",max= 500, min=1,width="100%",step=1,value=11),numericInput("c12", width="100%",step=1,min=1,max= 500,label="column 12", value=12)),
+                                           column(4, "row", numericInput("r1", label="row 1",width="100%",min=1,step=1,value=4), numericInput("r2", width="100%",label="row 2",step=1,min=1,value=4),
+                                                  numericInput("r3", label="row 3",min=1,step=1,width="100%",max= 500,value=4), numericInput("r4",label="row 4",min=1, max= 500,step=1,width="100%",value=4), numericInput("r5", label="row 5",min=1,max= 500,width="100%",step=1,value=4), 
+                                                  numericInput("r6", label="row 6",min=1,step=1,width="100%",max= 500,value=4), numericInput("r7", label="row 7",min=1,max= 500,step=1,width="100%",value=4), numericInput("r8", label="row 8",min=1,max= 500,width="100%",step=1,value=4),
+                                                  numericInput("r9",label="row 9", min=1,step=1,width="100%",max= 500,value=4),numericInput("r10",label="row 10",min=1,max= 500,step=1, width="100%",value=4), numericInput("r11", label="row 11",min=1,max= 500,width="100%",step=1,value=4),numericInput("r12", min=1,width="100%",step=1,label="row 12",max= 500,value=4))),
+                                  tableOutput("plot")),
+                              navbarMenu("Tables",
+                                    tabPanel("t0 OD340", tableOutput("tablet0")),
+                                    tabPanel("tX OD340", tableOutput("tabletx")),
+                                    tabPanel("tX OD450", tableOutput("table50")))))
+
+###
+
+server<- function(input, output){
+  ###Validation CSV
+  output$warnCSV<-renderText({
+    ext <- tools::file_ext(input$file1$datapath)
+    req(file)
+    validate(need(ext == "csv", "Please upload a csv file"))
+  })
+  output$warnCSV2<-renderText({
+    ext <- tools::file_ext(input$file2$datapath)
+    req(file)
+    validate(need(ext == "csv", "Please upload a csv file"))
+  })
+  output$warnCSV3<-renderText({
+    ext <- tools::file_ext(input$file3$datapath)
+    req(file)
+    validate(need(ext == "csv", "Please upload a csv file"))
+  })
+  ##Validation of ncol&nrow
+  data1<-reactive({
+    read.csv(input$file1$datapath)
+  })
+  data2<- reactive({
+    read.csv(input$file2$datapath)
+  })
+  data3<- reactive({
+    read.csv(input$file3$datapath)
+  })
+  output$tablet0<-renderTable({
+    data1()
+  })
+  output$tabletx<-renderTable({
+    data2()
+  })
+  output$table50<-renderTable({
+    data3()
+  })
+  output$warnCol<-renderText({
+    data1<-data1()
+    data2<-data2()
+    data4<-data3()
+    ncol1<-ncol(data1)
+    ncol2<-ncol(data2)
+    ncol3<-ncol(data4)
+    nro1<-nrow(data1)
+    nro2<-nrow(data2)
+    nro3<-nrow(data4)
+    validate(need(ncol1==ncol2, "FAILED, not same number of columns"))
+    validate(need(nro1==nro2, "FAILED, not same number of rows"))
+  })
+  
+  data6<-reactive({
+    data1<-data1()
+    data2<-data2()
+    
+    ncol1<-ncol(data1)
+    nro1<-nrow(data1)
+    df3<-data.frame(matrix(ncol=ncol1, nrow=nro1))
+    
+    for (t in seq(from= 1, to=nro1)){
+      for (i in seq(from=input$si, to=as.numeric(ncol1))){
+        df3[t,i]<-(data2[t,i]-data1[t,i])
+      }}
+    df3
+  })
+  
+  output$table1<-renderTable({
+    df3<-data6()
+    data4<-data3()
+    ncol1<-ncol(data4)
+    nro1<-nrow(data4)
+    for (t in seq(from= 1, to=nro1)){
+      for (i in seq(from=input$si, t=as.numeric(ncol1))){
+        df3[t,i]<-df3[t,i]/(202.93-123.03*log10(data4[t,i]))
+        
+      }}
+    df3
+  })
+  output$table2<-renderTable({
+    df3<-data6()
+    data4<-data3()
+    ncol1<-ncol(data4)
+    nro1<-nrow(data4)
+    for (t in seq(from= 1, to=nro1)){
+      for (i in seq(from=input$si, t=as.numeric(ncol1))){
+        df3[t,i]<-df3[t,i]/(202.93-123.03*log10(data4[t,i]))
+        
+      }}
+    df3
+  })
+}
+  
+
+shinyApp(ui, server)
